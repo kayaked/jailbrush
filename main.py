@@ -3,7 +3,7 @@ import sys
 import shutil
 from PyQt5 import QtCore, QtWidgets
 from PyQt5.QtWidgets import QMainWindow, QLabel, QGridLayout, QWidget, QApplication, QVBoxLayout, QHBoxLayout, QListWidget, QListWidgetItem, QDialog, QFileDialog, QMessageBox
-from PyQt5.QtWidgets import QPushButton
+from PyQt5.QtWidgets import QPushButton, QLineEdit, QTextEdit
 from PyQt5.QtGui import QImage, QPalette, QBrush, QPixmap, QIcon
 from PyQt5.QtCore import QSize
 
@@ -21,6 +21,12 @@ def console_text():
 
 
 console_text()
+
+def cpnt(text):
+    print('[>] ' + text)
+
+cpnt('Test Message. Will be used for pre-qt messages in the future.')
+cpnt('Test Message 2.')
 
 class MainWindow(QMainWindow):
     def __init__(self):
@@ -41,7 +47,7 @@ class MainWindow(QMainWindow):
         icon_manager_btn.move(25, 25)
 
         metadata_btn = QPushButton('Info Editor', self)
-        metadata_btn.clicked.connect(self.icon_manager)
+        metadata_btn.clicked.connect(self.metadata_editor)
         metadata_btn.resize(150,50)
         metadata_btn.move(25,87.5)
 
@@ -55,6 +61,10 @@ class MainWindow(QMainWindow):
     def icon_manager(self):
         self.icon_manager_win = IconManager()
         self.icon_manager_win.show()
+    
+    def metadata_editor(self):
+        self.metadata_editor_win = MetaEditor()
+        self.metadata_editor_win.show()
 
 class IconManager(QDialog):
     def __init__(self):
@@ -131,7 +141,64 @@ class IconManager(QDialog):
         if reply == QMessageBox.Yes:
             os.remove('IconBundles/' + self.selectedItem.text())
             self.icon_list.takeItem(self.icon_list.row(self.selectedItem))
-            
+
+class MetaEditor(QDialog):
+    def __init__(self):
+        QDialog.__init__(self)
+
+        self.setMinimumSize(QSize(300, 400))
+        self.setWindowTitle("Metadata Editor")
+
+        self.package = QLabel('Package', self)
+        self.package_entry = QLineEdit()
+        self.name = QLabel('Theme Name', self)
+        self.name_entry = QLineEdit()
+        self.version = QLabel('Version', self)
+        self.version_entry = QLineEdit()
+        self.author = QLabel('Author', self)
+        self.author_entry = QLineEdit()
+        self.description = QLabel('Description', self)
+        self.description_entry = QLineEdit()
+        self.ld = QLabel('Long Desc.', self)
+        self.ld.setWordWrap(True)
+        self.ld_entry = QTextEdit()
+
+        ok_btn = QPushButton('Ok', self)
+        ok_btn.resize(150,50)
+        ok_btn.clicked.connect(self.accept)
+
+        cancel_btn = QPushButton('Cancel', self)
+        cancel_btn.resize(150,50)
+        cancel_btn.clicked.connect(self.accept)
+
+        grid = QGridLayout()
+        grid.setSpacing(10)
+        grid.addWidget(self.package, 0, 0)
+        grid.addWidget(self.package_entry, 0, 1, 1, 3)
+        grid.addWidget(self.name, 1, 0)
+        grid.addWidget(self.name_entry, 1, 1, 1, 3)
+        grid.addWidget(self.version, 2, 0)
+        grid.addWidget(self.version_entry, 2, 1, 1, 3)
+        grid.addWidget(self.author, 3, 0)
+        grid.addWidget(self.author_entry, 3, 1, 1, 3)
+        grid.addWidget(self.description, 4, 0)
+        grid.addWidget(self.description_entry, 4, 1, 1, 3)
+        grid.addWidget(self.ld, 5, 0, 3, 3)
+        grid.addWidget(self.ld_entry, 5, 1, 3, 3)
+        grid.addWidget(ok_btn, 8, 2)
+        grid.addWidget(cancel_btn, 8, 3)
+
+        oImage = QImage("background_3.png")
+        sImage = oImage.scaled(QSize(500,500))
+        palette = QPalette()
+        palette.setBrush(10, QBrush(sImage))
+        self.setPalette(palette)
+
+        self.setLayout(grid)
+
+        self.show()
+        
+
 
 class IconList(QListWidget):
     def __init__(self, parent=None):

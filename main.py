@@ -6,15 +6,16 @@ from PyQt5.QtWidgets import QMainWindow, QLabel, QGridLayout, QWidget, QApplicat
 from PyQt5.QtWidgets import QPushButton, QLineEdit, QTextEdit
 from PyQt5.QtGui import QImage, QPalette, QBrush, QPixmap, QIcon
 from PyQt5.QtCore import QSize
+from textwrap import wrap
 
 def console_text():
     text = """
-   ___       _ _ _                    _     
-  |_  |     (_) | |                  | |    
-    | | __ _ _| | |__  _ __ _   _ ___| |__  
-    | |/ _` | | | '_ \| '__| | | / __| '_ \ 
-/\__/ / (_| | | | |_) | |  | |_| \__ \ | | |
-\____/ \__,_|_|_|_.__/|_|   \__,_|___/_| |_|
+   ___       _ _ _                    _           _--|
+  |_  |     (_) | |                  | |         |  _|
+    | | __ _ _| | |__  _ __ _   _ ___| |__       / /
+    | |/ _` | | | '_ \| '__| | | / __| '_ \     / /
+/\__/ / (_| | | | |_) | |  | |_| \__ \ | | |   / /
+\____/ \__,_|_|_|_.__/|_|   \__,_|___/_| |_|  |_/
 
     """.strip('\n')
     print(text)
@@ -25,8 +26,38 @@ console_text()
 def cpnt(text):
     print('[>] ' + text)
 
-cpnt('Test Message. Will be used for pre-qt messages in the future.')
-cpnt('Test Message 2.')
+current_project_name = 'New Theme 1'
+
+project_list = [folder for folder in os.listdir() if folder.endswith('.theme')]
+if project_list:
+    current_project_name = project_list[0].split('.')[0]
+
+cpnt('Checking directory for Debian Structure.')
+if not os.path.isdir(f'{current_project_name}.theme'):
+    cpnt(f'Creating directory :/{current_project_name}.theme/')
+    os.mkdir(f'{current_project_name}.theme')
+
+if not os.path.isdir(f'{current_project_name}.theme/Library'):
+    cpnt(f'Creating directory :/{current_project_name}.theme/Library/')
+    os.mkdir(f'{current_project_name}.theme/Library')
+
+if not os.path.isdir(f'{current_project_name}.theme/DEBIAN'):
+    cpnt(f'Creating directory :/{current_project_name}.theme/DEBIAN/')
+    os.mkdir(f'{current_project_name}.theme/DEBIAN')
+
+if not os.path.isdir(f'{current_project_name}.theme/Library/Themes/'):
+    cpnt(f'Creating directory :/{current_project_name}.theme/Library/Themes/')
+    os.mkdir(f'{current_project_name}.theme/Library/Themes')
+
+if not os.listdir(f'{current_project_name}.theme/Library/Themes/'):
+    os.mkdir(f'{current_project_name}.theme/Library/Themes/{current_project_name}.theme')
+else:
+    current_project_name =  os.listdir(f'{current_project_name}.theme/Library/Themes')[0].split('.')[0]
+cpnt('Found theme directory.')
+cpnt('Current theme name is "' + current_project_name.upper() + '".')
+
+def project_path():
+    return f'{current_project_name}.theme/Library/Themes/' + current_project_name + '.theme/'
 
 class MainWindow(QMainWindow):
     def __init__(self):
@@ -69,8 +100,8 @@ class MainWindow(QMainWindow):
 class IconManager(QDialog):
     def __init__(self):
         QMainWindow.__init__(self)
-        if not os.path.isdir('IconBundles'):
-            os.mkdir('IconBundles/')
+        if not os.path.isdir(project_path() + 'IconBundles'):
+            os.mkdir(project_path() + 'IconBundles/')
 
         self.setMinimumSize(QSize(350, 300))  
         self.selectedItem = None  
@@ -82,7 +113,7 @@ class IconManager(QDialog):
         self.icon_list.item
         self.icon_list.move(25,25)
 
-        ok_btn = QPushButton('Ok', self)
+        ok_btn = QPushButton('OK', self)
         ok_btn.resize(150,50)
         ok_btn.clicked.connect(self.accept)
 
@@ -130,16 +161,16 @@ class IconManager(QDialog):
         options = QFileDialog.Options()
         options |= QFileDialog.DontUseNativeDialog
         filepath, _ = QFileDialog.getOpenFileName(self,"Select Theme Icons", "","PNG Icons (*.png)", options=options)
-        shutil.copyfile(filepath, 'IconBundles/' + filepath.split('/')[-1])
+        shutil.copyfile(filepath, project_path() + 'IconBundles/' + filepath.split('/')[-1])
         thumb = QIcon()
-        thumb.addPixmap(QPixmap('IconBundles/' + filepath.split('/')[-1]), QIcon.Normal)
+        thumb.addPixmap(QPixmap(project_path() + 'IconBundles/' + filepath.split('/')[-1]), QIcon.Normal)
         self.icon_list.addItem(QListWidgetItem(thumb,filepath.split('/')[-1]))
     
     def remove_image(self):
         reply = QMessageBox.question(self, 'Message', 'Are you sure you want to permanently delete ' + self.selectedItem.text() + '?', QMessageBox.Yes, QMessageBox.No)
 
         if reply == QMessageBox.Yes:
-            os.remove('IconBundles/' + self.selectedItem.text())
+            os.remove(project_path() + 'IconBundles/' + self.selectedItem.text())
             self.icon_list.takeItem(self.icon_list.row(self.selectedItem))
 
 class MetaEditor(QDialog):
@@ -149,23 +180,39 @@ class MetaEditor(QDialog):
         self.setMinimumSize(QSize(300, 400))
         self.setWindowTitle("Metadata Editor")
 
-        self.package = QLabel('Package', self)
+        self.package = QLabel('Package ID', self)
         self.package_entry = QLineEdit()
+        self.package_entry.setPlaceholderText('com.example.theme (auto-generates!)')
         self.name = QLabel('Theme Name', self)
         self.name_entry = QLineEdit()
+        self.name_entry.setPlaceholderText('Stacks')
         self.version = QLabel('Version', self)
         self.version_entry = QLineEdit()
+        self.version_entry.setPlaceholderText('1.1')
         self.author = QLabel('Author', self)
         self.author_entry = QLineEdit()
+        self.author_entry.setPlaceholderText('Luminant Design')
         self.description = QLabel('Description', self)
         self.description_entry = QLineEdit()
+        self.description_entry.setPlaceholderText('A new outlook on your icons.')
         self.ld = QLabel('Long Desc.', self)
         self.ld.setWordWrap(True)
         self.ld_entry = QTextEdit()
+        self.ld_entry.setPlaceholderText('Stacks brings a new outlook to your device, handcrafted by the Aceruos team to feature a stacked effect for your icons.')
 
-        ok_btn = QPushButton('Ok', self)
+        if os.path.isfile(f'{current_project_name}.theme/DEBIAN/control'):
+            with open(f'{current_project_name}.theme/DEBIAN/control', 'r') as fp:
+                controllines = [line.strip() for line in fp.readlines()]
+                for line in controllines:
+                    if line.startswith('Package: '): self.package_entry.setText(line.split(': ', 1)[-1])
+                    if line.startswith('Name: '): self.name_entry.setText(line.split(': ', 1)[-1])
+                    if line.startswith('Version: '): self.version_entry.setText(line.split(': ', 1)[-1])
+                    if line.startswith('Author: '): self.author_entry.setText(line.split(': ', 1)[-1])
+                    if line.startswith('Description: '): self.description_entry.setText(line.split(': ', 1)[-1])
+
+        ok_btn = QPushButton('OK', self)
         ok_btn.resize(150,50)
-        ok_btn.clicked.connect(self.accept)
+        ok_btn.clicked.connect(self.controlfile)
 
         cancel_btn = QPushButton('Cancel', self)
         cancel_btn.resize(150,50)
@@ -197,6 +244,32 @@ class MetaEditor(QDialog):
         self.setLayout(grid)
 
         self.show()
+
+    def autopackageid():
+        pass
+    
+    def controlfile(self):
+        global current_project_name
+        name = self.name_entry.text()
+        os.rename(current_project_name + '.theme', name + '.theme')
+        current_project_name = name
+        os.rename(f'{name}.theme/Library/Themes/' + os.listdir(f'{name}.theme/Library/Themes/')[0], f'{name}.theme/Library/Themes/{name}.theme')
+
+        control = open(f"{current_project_name}.theme/DEBIAN/control", 'w+')
+        control.write(f'Package: {self.package_entry.text()}\n')
+        control.write(f'Name: {self.name_entry.text()}\n')
+        control.write(f'Version: {self.version_entry.text()}\n')
+        control.write(f'Architecture: iphoneos-arm\n')
+        long_desc = ''.join([" " + line + "\n" for line in wrap(self.ld_entry.toPlainText(), 30)])
+        control.write(f'Description: {self.description_entry.text()}\n{long_desc}')
+        control.write(f'Maintainer: {self.author_entry.text()}\n')
+        control.write(f'Author: {self.author_entry.text()}\n')
+        control.write('Section: Themes\n')
+        control.write('Depends: com.anemonetheming.anemone\n')
+        control.close()
+        self.accept()
+
+
         
 
 
@@ -204,10 +277,10 @@ class IconList(QListWidget):
     def __init__(self, parent=None):
         QListWidget.__init__(self, parent)
         self.parent = parent
-        icons = [icon for icon in os.listdir('IconBundles') if icon.endswith('.png')]
+        icons = [icon for icon in os.listdir(project_path() + 'IconBundles') if icon.endswith('.png')]
         for icon in icons:
             thumb = QIcon()
-            thumb.addPixmap(QPixmap('IconBundles/' + icon), QIcon.Normal)
+            thumb.addPixmap(QPixmap(project_path() + 'IconBundles/' + icon), QIcon.Normal)
             self.addItem(QListWidgetItem(thumb, icon))
         self.show()
 

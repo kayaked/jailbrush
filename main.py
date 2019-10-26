@@ -1,5 +1,7 @@
 import os
 import sys
+import requests
+import time
 import shutil
 from PyQt5 import QtCore, QtWidgets
 from PyQt5.QtWidgets import QMainWindow, QLabel, QGridLayout, QWidget, QApplication, QVBoxLayout, QHBoxLayout, QListWidget, QListWidgetItem, QDialog, QFileDialog, QMessageBox
@@ -128,6 +130,7 @@ class IconManager(QDialog):
         self.edit_btn = QPushButton('Edit', self)
         self.edit_btn.resize(150,100)
         self.edit_btn.setDisabled(True)
+        self.edit_btn.clicked.connect(self.edit_image)
 
         self.remove_btn = QPushButton('Remove', self)
         self.remove_btn.resize(150,100)
@@ -172,6 +175,10 @@ class IconManager(QDialog):
         if reply == QMessageBox.Yes:
             os.remove(project_path() + 'IconBundles/' + self.selectedItem.text())
             self.icon_list.takeItem(self.icon_list.row(self.selectedItem))
+    
+    def edit_image(self):
+        self.iconsubeditor = IconSubEditor(self.selectedItem)
+        self.iconsubeditor.show()
 
 class MetaEditor(QDialog):
     def __init__(self):
@@ -269,9 +276,66 @@ class MetaEditor(QDialog):
         control.close()
         self.accept()
 
+class IconSubEditor(QDialog):
+    def __init__(self, item):
+        QDialog.__init__(self)
 
-        
+        self.setMinimumSize(QSize(200, 400))
+        self.icon = item
+        self.setWindowTitle(f"Icon Editor - {item.text()}")
+        self.rate_lim = time.time()
+        self.selectedItem = None
 
+        grid = QGridLayout()
+        grid.setSpacing(10)
+        self.setLayout(grid)
+        self.idlist = QListWidget(self)
+        self.idlist.itemClicked.connect(self.item_options)
+        self.appname = QLineEdit(self)
+        self.appname.setPlaceholderText('App Name (e.g. Fruit Ninja)')
+        self.appname.textEdited.connect(self.request)
+        grid.addWidget(self.appname, 0, 0, 1, 2)
+        grid.addWidget(self.idlist, 1, 0, 2, 2)
+
+        self.bundleid = QLineEdit(self)
+        self.bundleid.setPlaceholderText('Bundle ID (auto-fills!)')
+        grid.addWidget(self.bundleid, 3, 0, 1, 2)
+
+        self.ok_btn = QPushButton('OK', self)
+        self.ok_btn.resize(150,50)
+        self.ok_btn.clicked.connect(self.savename)
+        self.ok_btn.setDisabled(True)
+        grid.addWidget(self.ok_btn, 4, 0, 1, 1)
+
+        cancel_btn = QPushButton('Cancel', self)
+        cancel_btn.resize(150,50)
+        cancel_btn.clicked.connect(self.accept)
+        grid.addWidget(cancel_btn, 4, 1, 1, 1)
+        self.show()
+
+    def request(self, text):
+        self.idlist.clear()
+        cpnt(text)
+        rl = time.time()
+        if rl-self.rate_lim <0.5:
+            return
+        self.rate_lim = time.time()
+        response = requests.get("https://itunes.apple.com/search?term=" + text + "&entity=software&limit=25")
+        if response.status_code != 200:
+            cpnt(f'Error occurred in request. Temporary non-qt error message, we apologize for the inconvenience. (e.c. {response.status_code})')
+        response = response.json()['results']
+        for item in response:
+            self.idlist.addItem(QListWidgetItem(item['bundleId']))
+
+    def savename(self):
+        new = self.bundleid.text()
+        os.rename(project_path() + 'IconBundles/' + self.icon.text(), project_path() + 'IconBundles/' + new + '.png')
+        self.accept()
+    
+    def item_options(self, item):
+        self.bundleid.setText(item.text())
+        self.selectedItem = item
+        self.ok_btn.setDisabled(False)
 
 class IconList(QListWidget):
     def __init__(self, parent=None):

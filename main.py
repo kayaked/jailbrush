@@ -2,9 +2,11 @@ import os
 import sys
 import requests
 import time
+import threading
 import shutil
+import subprocess
 from PyQt5 import QtCore, QtWidgets
-from PyQt5.QtWidgets import QMainWindow, QLabel, QGridLayout, QWidget, QApplication, QVBoxLayout, QHBoxLayout, QListWidget, QListWidgetItem, QDialog, QFileDialog, QMessageBox
+from PyQt5.QtWidgets import QMainWindow, QLabel, QGridLayout, QWidget, QApplication, QVBoxLayout, QHBoxLayout, QListWidget, QListWidgetItem, QDialog, QFileDialog, QMessageBox, QProgressBar
 from PyQt5.QtWidgets import QPushButton, QLineEdit, QTextEdit
 from PyQt5.QtGui import QImage, QPalette, QBrush, QPixmap, QIcon
 from PyQt5.QtCore import QSize
@@ -22,6 +24,14 @@ def console_text():
     """.strip('\n')
     print(text)
 
+INFO_PLIST = """<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+	<key>IB-MaskIcons</key>
+	<true/>
+</dict>
+</plist>"""
 
 console_text()
 
@@ -55,18 +65,23 @@ if not os.listdir(f'{current_project_name}.theme/Library/Themes/'):
     os.mkdir(f'{current_project_name}.theme/Library/Themes/{current_project_name}.theme')
 else:
     current_project_name =  os.listdir(f'{current_project_name}.theme/Library/Themes')[0].split('.')[0]
+
 cpnt('Found theme directory.')
 cpnt('Current theme name is "' + current_project_name.upper() + '".')
 
 def project_path():
     return f'{current_project_name}.theme/Library/Themes/' + current_project_name + '.theme/'
 
+if not os.path.isfile(project_path() + 'Info.plist'):
+    with open(project_path() + 'Info.plist', 'w+') as fp:
+        fp.write(INFO_PLIST)
+
 class MainWindow(QMainWindow):
     def __init__(self):
         QMainWindow.__init__(self)
 
-        self.setMinimumSize(QSize(200, 225))    
-        self.setWindowTitle("Jailbrush 🖌") 
+        self.setMinimumSize(QSize(200, 225))
+        self.setWindowTitle("Jailbrush 🖌")
 
         oImage = QImage("background.png")
         sImage = oImage.scaled(QSize(300,200))
@@ -85,7 +100,7 @@ class MainWindow(QMainWindow):
         metadata_btn.move(25,87.5)
 
         export_btn = QPushButton('Export', self)
-        export_btn.clicked.connect(self.icon_manager)
+        export_btn.clicked.connect(self.export_editor)
         export_btn.resize(150,50)
         export_btn.move(25,150)
         
@@ -98,6 +113,9 @@ class MainWindow(QMainWindow):
     def metadata_editor(self):
         self.metadata_editor_win = MetaEditor()
         self.metadata_editor_win.show()
+    
+    def export_editor(self):
+        self.export_editor_win = ExportLoader()
 
 class IconManager(QDialog):
     def __init__(self):
@@ -105,7 +123,7 @@ class IconManager(QDialog):
         if not os.path.isdir(project_path() + 'IconBundles'):
             os.mkdir(project_path() + 'IconBundles/')
 
-        self.setMinimumSize(QSize(350, 300))  
+        self.setMinimumSize(QSize(300, 300))  
         self.selectedItem = None  
         self.setWindowTitle("Icon Manager")
 
@@ -118,10 +136,6 @@ class IconManager(QDialog):
         ok_btn = QPushButton('OK', self)
         ok_btn.resize(150,50)
         ok_btn.clicked.connect(self.accept)
-
-        cancel_btn = QPushButton('Cancel', self)
-        cancel_btn.resize(150,50)
-        cancel_btn.clicked.connect(self.accept)
 
         add_btn = QPushButton('Add...', self)
         add_btn.resize(150,100)
@@ -140,8 +154,7 @@ class IconManager(QDialog):
         grid = QGridLayout()
         grid.setSpacing(10)
         grid.addWidget(self.icon_list, 0, 0, 7, 4)
-        grid.addWidget(ok_btn, 8, 0)
-        grid.addWidget(cancel_btn, 8, 1)
+        grid.addWidget(ok_btn, 8, 0, 1, 6)
         grid.addWidget(add_btn, 1, 4, 1, 1)
         grid.addWidget(self.edit_btn, 3, 4, 1, 1)
         grid.addWidget(self.remove_btn, 5, 4, 1, 1)
@@ -155,7 +168,6 @@ class IconManager(QDialog):
         self.setPalette(palette)
     
     def item_options(self, item):
-        print(item)
         self.selectedItem = item
         self.edit_btn.setDisabled(False)
         self.remove_btn.setDisabled(False)
@@ -170,7 +182,7 @@ class IconManager(QDialog):
         self.icon_list.addItem(QListWidgetItem(thumb,filepath.split('/')[-1]))
     
     def remove_image(self):
-        reply = QMessageBox.question(self, 'Message', 'Are you sure you want to permanently delete ' + self.selectedItem.text() + '?', QMessageBox.Yes, QMessageBox.No)
+        reply = QMessageBox.question(self, 'Confirm Deletion', 'Are you sure you want to permanently delete ' + self.selectedItem.text() + '?', QMessageBox.Yes, QMessageBox.No)
 
         if reply == QMessageBox.Yes:
             os.remove(project_path() + 'IconBundles/' + self.selectedItem.text())
@@ -280,11 +292,17 @@ class IconSubEditor(QDialog):
     def __init__(self, item):
         QDialog.__init__(self)
 
-        self.setMinimumSize(QSize(200, 400))
+        self.setMinimumSize(QSize(450, 400))
         self.icon = item
         self.setWindowTitle(f"Icon Editor - {item.text()}")
         self.rate_lim = time.time()
         self.selectedItem = None
+
+        oImage = QImage("background_4.png")
+        sImage = oImage.scaled(QSize(500,400))
+        palette = QPalette()
+        palette.setBrush(10, QBrush(sImage))
+        self.setPalette(palette)
 
         grid = QGridLayout()
         grid.setSpacing(10)
@@ -293,27 +311,32 @@ class IconSubEditor(QDialog):
         self.idlist.itemClicked.connect(self.item_options)
         self.appname = QLineEdit(self)
         self.appname.setPlaceholderText('App Name (e.g. Fruit Ninja)')
-        self.appname.textEdited.connect(self.request)
-        grid.addWidget(self.appname, 0, 0, 1, 2)
-        grid.addWidget(self.idlist, 1, 0, 2, 2)
+        grid.addWidget(self.appname, 0, 0, 1, 3)
+        grid.addWidget(self.idlist, 1, 0, 2, 4)
+
+        self.search = QPushButton('Search', self)
+        self.search.resize(150,50)
+        self.search.clicked.connect(self.request)
+        grid.addWidget(self.search, 0, 3)
 
         self.bundleid = QLineEdit(self)
         self.bundleid.setPlaceholderText('Bundle ID (auto-fills!)')
-        grid.addWidget(self.bundleid, 3, 0, 1, 2)
+        grid.addWidget(self.bundleid, 3, 0, 1, 4)
 
         self.ok_btn = QPushButton('OK', self)
         self.ok_btn.resize(150,50)
         self.ok_btn.clicked.connect(self.savename)
         self.ok_btn.setDisabled(True)
-        grid.addWidget(self.ok_btn, 4, 0, 1, 1)
+        grid.addWidget(self.ok_btn, 4, 2, 1, 1)
 
         cancel_btn = QPushButton('Cancel', self)
         cancel_btn.resize(150,50)
         cancel_btn.clicked.connect(self.accept)
-        grid.addWidget(cancel_btn, 4, 1, 1, 1)
+        grid.addWidget(cancel_btn, 4, 3, 1, 1)
         self.show()
 
-    def request(self, text):
+    def request(self):
+        text = self.appname.text()
         self.idlist.clear()
         cpnt(text)
         rl = time.time()
@@ -325,7 +348,7 @@ class IconSubEditor(QDialog):
             cpnt(f'Error occurred in request. Temporary non-qt error message, we apologize for the inconvenience. (e.c. {response.status_code})')
         response = response.json()['results']
         for item in response:
-            self.idlist.addItem(QListWidgetItem(item['bundleId']))
+            self.idlist.addItem(QListWidgetItem(item['trackCensoredName'][:25] + ' | ' + item['bundleId']))
 
     def savename(self):
         new = self.bundleid.text()
@@ -333,9 +356,70 @@ class IconSubEditor(QDialog):
         self.accept()
     
     def item_options(self, item):
-        self.bundleid.setText(item.text())
+        self.bundleid.setText(item.text().split(' | ')[-1])
         self.selectedItem = item
         self.ok_btn.setDisabled(False)
+
+class ExportLoader(QDialog):
+    def __init__(self):
+        QDialog.__init__(self)
+
+        self.setMinimumSize(QSize(300, 125))
+        self.setWindowTitle(f"Exporting {current_project_name}.deb")
+        self.setWindowFlags(self.windowFlags() | QtCore.Qt.CustomizeWindowHint)
+        self.setWindowFlags(self.windowFlags() & ~QtCore.Qt.WindowCloseButtonHint)
+
+        grid = QGridLayout()
+        grid.setSpacing(10)
+
+        self.setLayout(grid)
+
+        self.progress = QProgressBar(self)
+        self.status = QLabel("Jailbrush Exporter 0.1.0 by github.com/kayaked")
+        self.status.setAlignment(QtCore.Qt.AlignCenter)
+
+        grid.addWidget(self.progress, 1, 0, 2, 1)
+        grid.addWidget(self.status, 0, 0, 1, 1)
+
+        oImage = QImage("background_5.png")
+        sImage = oImage.scaled(QSize(400,150))
+        palette = QPalette()
+        palette.setBrush(10, QBrush(sImage))
+        self.setPalette(palette)
+
+        self.show()
+
+        self.gui_prog('Checking for directory ./')
+        if not os.path.isdir(current_project_name + '.theme/'):
+            QMessageBox.critical(self, 'Exporting Error', 'Project directory not found!', QMessageBox.Ok)
+            self.accept()
+
+        self.gui_prog('Checking for directory ./DEBIAN/')
+        if not os.path.isdir(current_project_name + '.theme/DEBIAN/'):
+            QMessageBox.critical(self, 'Exporting Error', 'DEBIAN directory not found (try using the info editor)!', QMessageBox.Ok)
+            self.accept()
+
+        self.gui_prog('Checking for directory ./Library/')
+        if not os.path.isdir(current_project_name + '.theme/Library/'):
+            QMessageBox.critical(self, 'Exporting Error', 'Library directory not found!', QMessageBox.Ok)
+            self.accept()
+        
+        self.gui_prog('Checking operating system')
+        if os.name == 'nt':
+            QMessageBox.critical(self, 'Exporting Error', 'Windows is currently not support by Jailbrush. Please wait for future updates or official releases on our GitHub.', QMessageBox.Ok)
+            self.accept()
+
+        self.gui_prog('Packaging and saving')
+        test = subprocess.Popen(["dpkg-deb", "-b", "./{}.theme".format(current_project_name), "./"], stdout=subprocess.PIPE)
+        output = str(test.communicate()[0])
+        cpnt(output)
+
+        QMessageBox.information(self, 'Exporter', 'Successfully exported to the package "{}".'.format(output.split("'")[:-1][-1]))
+        self.accept()
+
+    def gui_prog(self, text):
+        self.status.setText(text)
+        self.progress.setValue(self.progress.value() + 20)
 
 class IconList(QListWidget):
     def __init__(self, parent=None):

@@ -7,7 +7,7 @@ Structuring, editing and packaging a theme for use on an iOS device can be time-
 
 **Icon Manager**
 
-View, add and remove icons from your theme's bundle. Soon to have edit functions.
+View, add and remove icons from your theme's bundle. Also allows you to search the App Store for app IDs and edit icon names.
 
 ![IconManager](https://media.discordapp.net/attachments/576970477306773546/637110810665025537/Screen_Shot_2019-10-24_at_10.09.45_PM.png)
 
@@ -17,8 +17,9 @@ Edit the metadata/information about your theme, including its name, package, ver
 
 ![InfoEditor](https://media.discordapp.net/attachments/576970477306773546/637110832224010271/Screen_Shot_2019-10-24_at_10.10.22_PM.png)
 
-**Packager**
+**Exporter**
 
-Coming soon!
+Package and export the theme to a .deb Package file, ready to be installed on an iOS device.
 
-credits: kayaked (Jack), psf, qt project, & jacc and mass1ve_err0r for some motivation
+A kayaked project
+Support: yak#0001

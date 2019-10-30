@@ -428,7 +428,7 @@ class ExportLoader(QDialog):
         self.setLayout(grid)
 
         self.progress = QProgressBar(self)
-        self.status = QLabel("Jailbrush Exporter 0.1.0 by github.com/kayaked")
+        self.status = QLabel("Jailbrush Exporter 0.1.1 by github.com/kayaked")
         self.status.setAlignment(QtCore.Qt.AlignCenter)
 
         grid.addWidget(self.progress, 1, 0, 2, 1)

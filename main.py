@@ -82,7 +82,7 @@ class MainWindow(QMainWindow):
     def __init__(self):
         QMainWindow.__init__(self)
 
-        self.setMinimumSize(QSize(200, 287.5))
+        self.setFixedSize(QSize(200, 287.5))
         self.setWindowTitle("Jailbrush 🖌")
 
         oImage = QImage("background/background.png")
@@ -110,25 +110,29 @@ class MainWindow(QMainWindow):
         export_btn.clicked.connect(self.sftp_installer)
         export_btn.resize(150,50)
         export_btn.move(25,212.5)
-        
+
     def sftp_installer(self):
         self.sftp_installer = SSHInstall()
 
     def icon_manager(self):
         self.icon_manager_win = IconManageMain()
         self.icon_manager_win.show()
-    
+
     def metadata_editor(self):
         self.metadata_editor_win = MetaEditor()
         self.metadata_editor_win.show()
-    
+
     def export_editor(self):
         self.export_editor_win = ExportLoader()
 
 class IconManageMain(QDialog):
     def __init__(self):
         QDialog.__init__(self)
+        # one option here to set size constraints between these two
         self.setMinimumSize(QSize(300, 300))
+        self.setMaximumSize(QSize(500,300))
+        # or you could just lock in the size and they cant resize at all
+        #self.setFizedSize(QSize(300,500))
         if not os.path.isdir(project_path() + 'IconBundles'):
             os.mkdir(project_path() + 'IconBundles/')
         self.setWindowTitle("Icon Manager")
@@ -155,7 +159,7 @@ class ClockManager(QWidget):
 class IconManager(QWidget):
     def __init__(self, parent):
         QWidget.__init__(self, parent)
-        self.selectedItem = None  
+        self.selectedItem = None
 
         self.icon_list = IconList(self)
         self.icon_list.resize(250,300)
@@ -190,7 +194,7 @@ class IconManager(QWidget):
         grid.addWidget(self.remove_btn, 5, 4, 1, 1)
 
         self.setLayout(grid)
-    
+
     def item_options(self, item):
         self.selectedItem = item
         self.edit_btn.setDisabled(False)
@@ -204,14 +208,14 @@ class IconManager(QWidget):
         thumb = QIcon()
         thumb.addPixmap(QPixmap(project_path() + 'IconBundles/' + filepath.split('/')[-1]), QIcon.Normal)
         self.icon_list.addItem(QListWidgetItem(thumb,filepath.split('/')[-1]))
-    
+
     def remove_image(self):
         reply = QMessageBox.question(self, 'Confirm Deletion', 'Are you sure you want to permanently delete ' + self.selectedItem.text() + '?', QMessageBox.Yes, QMessageBox.No)
 
         if reply == QMessageBox.Yes:
             os.remove(project_path() + 'IconBundles/' + self.selectedItem.text())
             self.icon_list.takeItem(self.icon_list.row(self.selectedItem))
-    
+
     def edit_image(self):
         self.iconsubeditor = IconSubEditor(self.selectedItem)
         self.iconsubeditor.show()
@@ -220,7 +224,7 @@ class SSHInstall(QDialog):
     def __init__(self):
         QDialog.__init__(self)
 
-        self.setMinimumSize(500, 100)
+        self.setFixedSize(500, 100)
         self.setWindowTitle("SSH Installer")
 
         self.ip = QLineEdit()
@@ -241,13 +245,13 @@ class SSHInstall(QDialog):
 
     def connect_and_install(self):
         self.exporter = ExportLoader(install=True, credentials={'hostname': self.ip.text(), 'port': 22, 'username': 'root', 'password': self.pw.text()})
-        
+
 
 class MetaEditor(QDialog):
     def __init__(self):
         QDialog.__init__(self)
 
-        self.setMinimumSize(QSize(300, 400))
+        self.setFixedSize(QSize(500, 500))
         self.setWindowTitle("Metadata Editor")
 
         self.package = QLabel('Package ID', self)
@@ -317,7 +321,7 @@ class MetaEditor(QDialog):
 
     def autopackageid(self):
         pass
-    
+
     def controlfile(self):
         global current_project_name
         name = self.name_entry.text()
@@ -405,7 +409,7 @@ class IconSubEditor(QDialog):
         new = self.bundleid.text()
         os.rename(project_path() + 'IconBundles/' + self.icon.text(), project_path() + 'IconBundles/' + new + '.png')
         self.accept()
-    
+
     def item_options(self, item):
         self.bundleid.setText(item.text().split(' | ')[-1])
         self.selectedItem = item
@@ -417,7 +421,7 @@ class ExportLoader(QDialog):
 
         self.install = bool(kwargs.get('install'))
 
-        self.setMinimumSize(QSize(300, 125))
+        self.setFixedSize(QSize(400, 150))
         self.setWindowTitle(f"Exporting {current_project_name}.deb")
         self.setWindowFlags(self.windowFlags() | QtCore.Qt.CustomizeWindowHint)
         self.setWindowFlags(self.windowFlags() & ~QtCore.Qt.WindowCloseButtonHint)
@@ -456,7 +460,7 @@ class ExportLoader(QDialog):
         if not os.path.isdir(current_project_name + '.theme/Library/'):
             QMessageBox.critical(self, 'Exporting Error', 'Library directory not found!', QMessageBox.Ok)
             self.accept()
-        
+
         self.gui_prog('Checking operating system')
         if os.name == 'nt':
             QMessageBox.critical(self, 'Exporting Error', 'Windows is currently not support by Jailbrush. Please wait for future updates or official releases on our GitHub.', QMessageBox.Ok)

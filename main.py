@@ -230,6 +230,7 @@ class SSHInstall(QDialog):
         self.ip = QLineEdit()
         self.ip.setPlaceholderText('IP Address')
         self.pw = QLineEdit()
+        self.pw.setEchoMode(QLineEdit.Password)
         self.pw.setPlaceholderText('Password (default is alpine)')
         self.install = QPushButton('Install')
         self.install.clicked.connect(self.connect_and_install)

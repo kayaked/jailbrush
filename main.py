@@ -2,12 +2,13 @@ import os
 import sys
 import requests
 import time
+import paramiko
 import threading
 import shutil
 import subprocess
 from PyQt5 import QtCore, QtWidgets
 from PyQt5.QtWidgets import QMainWindow, QLabel, QGridLayout, QWidget, QApplication, QVBoxLayout, QHBoxLayout, QListWidget, QListWidgetItem, QDialog, QFileDialog, QMessageBox, QProgressBar
-from PyQt5.QtWidgets import QPushButton, QLineEdit, QTextEdit
+from PyQt5.QtWidgets import QPushButton, QLineEdit, QTextEdit, QTabWidget
 from PyQt5.QtGui import QImage, QPalette, QBrush, QPixmap, QIcon
 from PyQt5.QtCore import QSize
 from textwrap import wrap
@@ -80,11 +81,11 @@ class MainWindow(QMainWindow):
     def __init__(self):
         QMainWindow.__init__(self)
 
-        self.setMinimumSize(QSize(200, 225))
+        self.setMinimumSize(QSize(200, 287.5))
         self.setWindowTitle("Jailbrush 🖌")
 
         oImage = QImage("background.png")
-        sImage = oImage.scaled(QSize(300,200))
+        sImage = oImage.scaled(QSize(300,262.5))
         palette = QPalette()
         palette.setBrush(10, QBrush(sImage))
         self.setPalette(palette)
@@ -103,11 +104,17 @@ class MainWindow(QMainWindow):
         export_btn.clicked.connect(self.export_editor)
         export_btn.resize(150,50)
         export_btn.move(25,150)
-        
 
+        export_btn = QPushButton('Install', self)
+        export_btn.clicked.connect(self.sftp_installer)
+        export_btn.resize(150,50)
+        export_btn.move(25,212.5)
+        
+    def sftp_installer(self):
+        self.sftp_installer = SSHInstall()
 
     def icon_manager(self):
-        self.icon_manager_win = IconManager()
+        self.icon_manager_win = IconManageMain()
         self.icon_manager_win.show()
     
     def metadata_editor(self):
@@ -117,15 +124,37 @@ class MainWindow(QMainWindow):
     def export_editor(self):
         self.export_editor_win = ExportLoader()
 
-class IconManager(QDialog):
+class IconManageMain(QDialog):
     def __init__(self):
-        QMainWindow.__init__(self)
+        QDialog.__init__(self)
+        self.setMinimumSize(QSize(300, 300))
         if not os.path.isdir(project_path() + 'IconBundles'):
             os.mkdir(project_path() + 'IconBundles/')
-
-        self.setMinimumSize(QSize(300, 300))  
-        self.selectedItem = None  
         self.setWindowTitle("Icon Manager")
+
+        oImage = QImage("background_2.png")
+        sImage = oImage.scaled(QSize(500,300))
+        palette = QPalette()
+        palette.setBrush(10, QBrush(sImage))
+        self.setPalette(palette)
+        self.tabs = QTabWidget()
+        self.tab1 = IconManager(self)
+        self.tab2 = ClockManager(self)
+        self.tabs.addTab(self.tab1,"General")
+        self.tabs.addTab(self.tab2,"Clock")
+        grid = QGridLayout()
+        grid.setSpacing(10)
+        grid.addWidget(self.tabs, 0, 0)
+        self.setLayout(grid)
+
+class ClockManager(QWidget):
+    def __init__(self, parent):
+        QWidget.__init__(self, parent)
+
+class IconManager(QWidget):
+    def __init__(self, parent):
+        QWidget.__init__(self, parent)
+        self.selectedItem = None  
 
         self.icon_list = IconList(self)
         self.icon_list.resize(250,300)
@@ -135,13 +164,13 @@ class IconManager(QDialog):
 
         ok_btn = QPushButton('OK', self)
         ok_btn.resize(150,50)
-        ok_btn.clicked.connect(self.accept)
+        ok_btn.clicked.connect(parent.accept)
 
         add_btn = QPushButton('Add...', self)
         add_btn.resize(150,100)
         add_btn.clicked.connect(self.add_image)
 
-        self.edit_btn = QPushButton('Edit', self)
+        self.edit_btn = QPushButton('Edit...', self)
         self.edit_btn.resize(150,100)
         self.edit_btn.setDisabled(True)
         self.edit_btn.clicked.connect(self.edit_image)
@@ -160,12 +189,6 @@ class IconManager(QDialog):
         grid.addWidget(self.remove_btn, 5, 4, 1, 1)
 
         self.setLayout(grid)
-
-        oImage = QImage("background_2.png")
-        sImage = oImage.scaled(QSize(500,300))
-        palette = QPalette()
-        palette.setBrush(10, QBrush(sImage))
-        self.setPalette(palette)
     
     def item_options(self, item):
         self.selectedItem = item
@@ -191,6 +214,42 @@ class IconManager(QDialog):
     def edit_image(self):
         self.iconsubeditor = IconSubEditor(self.selectedItem)
         self.iconsubeditor.show()
+
+class SSHInstall(QDialog):
+    def __init__(self):
+        QDialog.__init__(self)
+
+        self.setMinimumSize(500, 100)
+        self.setWindowTitle("SSH Installer")
+
+        self.ip = QLineEdit()
+        self.ip.setPlaceholderText('IP Address')
+        self.pw = QLineEdit()
+        self.pw.setPlaceholderText('Password (default is alpine)')
+        self.install = QPushButton('Install')
+        self.install.clicked.connect(self.connect_and_install)
+
+        grid = QGridLayout()
+        grid.setSpacing(10)
+        grid.addWidget(self.ip, 0, 0)
+        grid.addWidget(self.pw, 0, 1)
+        grid.addWidget(self.install, 1, 0, 1, 2)
+        self.setLayout(grid)
+
+        self.show()
+
+    def connect_and_install(self):
+        client = paramiko.SSHClient()
+        try:
+            client.load_system_host_keys()
+            client.set_missing_host_key_policy(paramiko.WarningPolicy)
+            client.connect(self.ip.text(), port=22, username='root', password=self.pw.text())
+            client.exec_command('killall -9 SpringBoard')
+        except:
+            cpnt('Uncaught error. Please wait for a future update to Jailbrush for more information.')
+        finally:
+            client.close()
+        
 
 class MetaEditor(QDialog):
     def __init__(self):
@@ -264,7 +323,7 @@ class MetaEditor(QDialog):
 
         self.show()
 
-    def autopackageid():
+    def autopackageid(self):
         pass
     
     def controlfile(self):

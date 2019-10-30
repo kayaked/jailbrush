@@ -4,6 +4,7 @@ import requests
 import time
 import paramiko
 import threading
+import traceback
 import shutil
 import subprocess
 from PyQt5 import QtCore, QtWidgets
@@ -16,8 +17,8 @@ from textwrap import wrap
 def console_text():
     text = """
    ___       _ _ _                    _           _--|
-  |_  |     (_) | |                  | |         |  _|
-    | | __ _ _| | |__  _ __ _   _ ___| |__       / /
+  |_  |     (_) | |                  | |         |   |
+    | | __ _ _| | |__  _ __ _   _ ___| |__       |_--
     | |/ _` | | | '_ \| '__| | | / __| '_ \     / /
 /\__/ / (_| | | | |_) | |  | |_| \__ \ | | |   / /
 \____/ \__,_|_|_|_.__/|_|   \__,_|___/_| |_|  |_/
@@ -84,7 +85,7 @@ class MainWindow(QMainWindow):
         self.setMinimumSize(QSize(200, 287.5))
         self.setWindowTitle("Jailbrush 🖌")
 
-        oImage = QImage("background.png")
+        oImage = QImage("background/background.png")
         sImage = oImage.scaled(QSize(300,262.5))
         palette = QPalette()
         palette.setBrush(10, QBrush(sImage))
@@ -132,7 +133,7 @@ class IconManageMain(QDialog):
             os.mkdir(project_path() + 'IconBundles/')
         self.setWindowTitle("Icon Manager")
 
-        oImage = QImage("background_2.png")
+        oImage = QImage("background/background_2.png")
         sImage = oImage.scaled(QSize(500,300))
         palette = QPalette()
         palette.setBrush(10, QBrush(sImage))
@@ -239,16 +240,7 @@ class SSHInstall(QDialog):
         self.show()
 
     def connect_and_install(self):
-        client = paramiko.SSHClient()
-        try:
-            client.load_system_host_keys()
-            client.set_missing_host_key_policy(paramiko.WarningPolicy)
-            client.connect(self.ip.text(), port=22, username='root', password=self.pw.text())
-            client.exec_command('killall -9 SpringBoard')
-        except:
-            cpnt('Uncaught error. Please wait for a future update to Jailbrush for more information.')
-        finally:
-            client.close()
+        self.exporter = ExportLoader(install=True, credentials={'hostname': self.ip.text(), 'port': 22, 'username': 'root', 'password': self.pw.text()})
         
 
 class MetaEditor(QDialog):
@@ -313,7 +305,7 @@ class MetaEditor(QDialog):
         grid.addWidget(ok_btn, 8, 2)
         grid.addWidget(cancel_btn, 8, 3)
 
-        oImage = QImage("background_3.png")
+        oImage = QImage("background/background_3.png")
         sImage = oImage.scaled(QSize(500,500))
         palette = QPalette()
         palette.setBrush(10, QBrush(sImage))
@@ -357,7 +349,7 @@ class IconSubEditor(QDialog):
         self.rate_lim = time.time()
         self.selectedItem = None
 
-        oImage = QImage("background_4.png")
+        oImage = QImage("background/background_4.png")
         sImage = oImage.scaled(QSize(500,400))
         palette = QPalette()
         palette.setBrush(10, QBrush(sImage))
@@ -420,8 +412,10 @@ class IconSubEditor(QDialog):
         self.ok_btn.setDisabled(False)
 
 class ExportLoader(QDialog):
-    def __init__(self):
+    def __init__(self, **kwargs):
         QDialog.__init__(self)
+
+        self.install = bool(kwargs.get('install'))
 
         self.setMinimumSize(QSize(300, 125))
         self.setWindowTitle(f"Exporting {current_project_name}.deb")
@@ -440,7 +434,7 @@ class ExportLoader(QDialog):
         grid.addWidget(self.progress, 1, 0, 2, 1)
         grid.addWidget(self.status, 0, 0, 1, 1)
 
-        oImage = QImage("background_5.png")
+        oImage = QImage("background/background_5.png")
         sImage = oImage.scaled(QSize(400,150))
         palette = QPalette()
         palette.setBrush(10, QBrush(sImage))
@@ -469,16 +463,46 @@ class ExportLoader(QDialog):
             self.accept()
 
         self.gui_prog('Packaging and saving')
-        test = subprocess.Popen(["dpkg-deb", "-b", "./{}.theme".format(current_project_name), "./"], stdout=subprocess.PIPE)
+        test = subprocess.Popen(["dpkg-deb", "-bZlzma", "./{}.theme".format(current_project_name), "./"], stdout=subprocess.PIPE)
         output = str(test.communicate()[0])
         cpnt(output)
+        debname = output.split("'")[:-1][-1]
 
-        QMessageBox.information(self, 'Exporter', 'Successfully exported to the package "{}".'.format(output.split("'")[:-1][-1]))
+        if self.install == True:
+            self.gui_prog('Creating client')
+            try:
+                client = paramiko.SSHClient()
+                client.load_system_host_keys()
+                client.set_missing_host_key_policy(paramiko.WarningPolicy)
+                self.gui_prog('Connecting to host')
+                client.connect(**kwargs.get('credentials'))
+                self.gui_prog('Opening SFTP session')
+                sftp = client.open_sftp()
+                self.gui_prog('Copying DEB')
+                sftp.put(debname, '/var/mobile/Documents/' + debname)
+                self.gui_prog('Installing')
+                stdin, stdout, stderr = client.exec_command('dpkg -i /var/mobile/Documents/' + debname)
+                for line in stdout.read().decode().split('\n'):
+                    cpnt(line)
+                cpnt('Successfully installed! Respringing...')
+                client.exec_command('killall -9 SpringBoard')
+            except Exception as e:
+                traceback.print_exc()
+                cpnt('Uncaught error. Please wait for a future update to Jailbrush for more information.')
+            finally:
+                client.close()
+                del sftp
+
+
+        QMessageBox.information(self, 'Exporter', 'Successfully exported to the package "{}".'.format(debname))
         self.accept()
 
     def gui_prog(self, text):
         self.status.setText(text)
-        self.progress.setValue(self.progress.value() + 20)
+        offset = 20
+        if self.install:
+            offset = 10
+        self.progress.setValue(self.progress.value() + offset)
 
 class IconList(QListWidget):
     def __init__(self, parent=None):

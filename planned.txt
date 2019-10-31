@@ -1,0 +1,52 @@
+--- List of Jailbrush's Planned Features ---
+- Create theme's project folder ✅
+- Download backgrounds if not found
+- Project Selector
+    - Drop down menu on launch to pick project
+    - Switch projects later
+    - If only one project, auto open ✅
+    - If only one project, ability to make another
+- Icon Manager
+    - Add icons to theme's IconBundle ✅
+    - Remove icons ✅
+    - Edit BundleID of icons
+        - Search Bundle IDs within program from the App Store ✅
+        - Search IDs within program from Cydia sources
+        - Other App ID sources (ipa2id, stock apps, et cetera)
+    - Clock Icon Editor
+        - Overlay Hour, Minute, and Second Hands on app icon
+        - Allow for adjustment of sizes on Hands
+        - Automatic resizing and saving
+    - Calendar Icon Editor
+        - Overlay date and give layout modification options from Info.plist
+        - Automatic saving to Info.plist of settings
+    - Icon Masks
+        - Icon Mask preview
+        - Add/remove/save icon Masks
+    - App shadows
+        - Preview, add remove and save
+    - Advanced options
+    - Automatically save settings's themed icons
+- Metadata Editor
+    - Allow for editing of theme's information. ✅
+    - Export name to Info.plist
+    - Advanced editing options
+- Other Theming Options
+    - Ability to hide app names
+    - Hide/theme dock
+    - Hide/theme folders
+    - Theme badges
+    - Fonts?
+- General advanced options menu
+    - XZ or GZ Compression
+    - dpkg arguments
+    - ssh username
+    - ssh port
+    - disable springboard restart
+    - credits
+- Exporter/Installer
+    - Export theme to .deb using dpkg on Mac ✅
+    - Export theme to .deb using ar.exe on Windows
+    - SSH/SFTP Capabilities using an IP and Password to install package directly to phone ✅
+    - Scan network for devices?
+    - Loading bar ✅
